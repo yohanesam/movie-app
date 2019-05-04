@@ -8,7 +8,7 @@ import NotFound from '../elements/NotFound/NotFound'
 class App extends Component {
   render() {
     return (
-      <BrowserRouter>
+      <BrowserRouter basename="./react_rmdb/">
         <React.Fragment>
           <Headers />
           <Switch>

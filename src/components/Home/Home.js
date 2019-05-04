@@ -21,9 +21,35 @@ class Home extends Component {
     }
 
     componentDidMount() {
-        this.setState({ loading: true });
-        const endpoint = `${API_URL}movie/popular?api_key=${API_KEY}&language=en-US&page=1`;
-        this.fetchItem(endpoint);
+        if (localStorage.getItem('HomeState')) {
+            const state = JSON.parse(localStorage.getItem('HomeState'));
+            this.setState({...state});
+        } else {
+            this.setState({ loading: true });
+            const endpoint = `${API_URL}movie/popular?api_key=${API_KEY}&language=en-US&page=1`;
+            this.fetchItem(endpoint);
+        }
+        
+    }
+
+    fetchItem = async endpoint => {
+        const { movie, heroImage, searchTerm} = this.state;
+        const result = await (await fetch(endpoint)).json();
+        try{
+            this.setState({
+                movie: [...movie, ...result.results],
+                heroImage: heroImage || result.results[0],
+                loading: false,
+                currentPage: result.page,
+                totalPages: result.total_pages
+            }, () => {
+                if(searchTerm === "") {
+                    localStorage.setItem('HomeState', JSON.stringify(this.state));
+                }
+            });
+        } catch (e) {
+            console.log("There was an error", e);
+        }
     }
 
     searchItems = (searchTerm) => {
@@ -57,41 +83,29 @@ class Home extends Component {
         this.fetchItem(endpoint);
     }
 
-    fetchItem = (endpoint) => {
-        fetch(endpoint)
-            .then(result => result.json())
-            .then(result => {
-                this.setState({
-                    movie: [...this.state.movie, ...result.results],
-                    heroImage: this.state.heroImage || result.results[0],
-                    loading: false,
-                    currentPage: result.page,
-                    totalPages: result.total_pages
-                });
-
-                // console.log(this.state.totalPages);
-            });
-    }
-
     render() {
+        // ES6 destructuring the state
+
+        const { movie, heroImage, loading, currentPage, totalPages, searchTerm } = this.state;
+
         return (
             <div className="rmdb-home">
-                {this.state.heroImage ? 
+                {heroImage ? 
                     <div>
                         <HeroImage 
                             image = { `${ IMAGE_BASE_URL }${ BACKDROP_SIZE }${ this.state.heroImage.backdrop_path }` }
-                            title = { this.state.heroImage.original_title }
-                            text = { this.state.heroImage.overview }
+                            title = { heroImage.original_title }
+                            text = { heroImage.overview }
                         />
                         <SearchBar callback={ this.searchItems }/>
                     </div> : null}
 
                 <div className="rmdb-home-grid">
                     <FourColGrid 
-                        header={ this.state.searchTerm ? 'Search Result' : 'Popular Movie' }
-                        loading={ this.state.loading }>
+                        header={ searchTerm ? 'Search Result' : 'Popular Movie' }
+                        loading={ loading }>
 
-                        { this.state.movie.map( (element, i) => {
+                        { movie.map( (element, i) => {
                             return <MovieThumb
                                         key={ i }
                                         clickable={ true }
@@ -102,8 +116,8 @@ class Home extends Component {
 
                     </FourColGrid>
                     
-                    { this.state.loading ? <Spinner /> : null }
-                    { (this.state.currentPage <= this.state.totalPages && !this.state.loading) ?
+                    { loading ? <Spinner /> : null }
+                    { (currentPage <= totalPages && !loading) ?
                         <LoadMoreBtn text="Load More" onClick={ this.loadMoreItems } /> : null }
                 </div>
             </div>

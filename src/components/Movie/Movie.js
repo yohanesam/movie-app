@@ -18,39 +18,43 @@ class Movie extends Component {
     }
 
     componentDidMount() {
-        this.setState({ loading: true })
-        // First, fetch the movie
-        const endpoint = `${ API_URL }movie/${ this.props.match.params.movieId }?api_key=${ API_KEY }&language=en-US`
-
-        this.fetchItem(endpoint);
+        if (localStorage.getItem(`${ this.props.match.params.movieId }`)) {
+            const state = JSON.parse(localStorage.getItem(`${this.props.match.params.movieId}`));
+            this.setState({ ...state })
+        } else {
+            this.setState({ loading: true })
+            // First, fetch the movie
+            const endpoint = `${ API_URL }movie/${ this.props.match.params.movieId }?api_key=${ API_KEY }&language=en-US`
+    
+            this.fetchItem(endpoint); 
+        }
     }
 
-    fetchItem = (endpoint) => {
-        fetch(endpoint)
-            .then(result => result.json())
-            .then(result => {
-                console.log(result)
-                if (result.status_code) {
-                    this.setState({ loading: false })
-                } else {
-                    this.setState({ movie: result }, () => {
-                        // ... then fecth actors in the setState callback function
-                        const endpoint = `${ API_URL }movie/${ this.props.match.params.movieId }/credits?api_key=${ API_KEY }&language=en-US`
-                        fetch(endpoint)
-                            .then(result => result.json())
-                            .then(result => {
-                                const directors = result.crew.filter( (member) => member.job === 'Director')
+    fetchItem = async endpoint => {
+        const { movieId } = this.props.match.params;
+        try {
+            const result = await (await fetch(endpoint)).json();
+            if (result.status_code) {
+                // if we dont have any movie
+                this.setState({ loading: false })
+            } else {
+                this.setState({ movie: result })
+                // ... then fecth actors in the setState callback function
+                const creditsEndpoint = `${ API_URL }movie/${ movieId }/credits?api_key=${ API_KEY }&language=en-US`
+                const creditResult = await (await fetch(creditsEndpoint)).json();
+                const directors = creditResult.crew.filter( (member) => member.job === 'Director')
 
-                                this.setState({
-                                    actors: result.cast,
-                                    directors,
-                                    loading: false
-                                })
-                            })
-                    })
-                }
-            })
-            .catch(error => console.error('Error: ', error));
+                this.setState({
+                    actors: creditResult.cast,
+                    directors,
+                    loading: false
+                }, () => {
+                    localStorage.setItem(`${ movieId }`, JSON.stringify(this.state))
+                })
+            }
+        } catch(e) {
+            console.log("There was an error: ", e)
+        }
     }
 
     render() {
